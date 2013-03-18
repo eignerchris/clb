@@ -1,0 +1,7 @@
+(ns clb.core-test
+  (:use clojure.test
+        clb.core))
+
+(deftest a-test
+  (testing "FIXME, I fail."
+    (is (= 0 1))))
