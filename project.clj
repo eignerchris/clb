@@ -5,5 +5,6 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.4.0"]
                  [clj-redis "0.0.12"]
-                 [http-kit "2.0.0-RC4"]]
+                 [http-kit "2.0.0-RC4"]
+                 [cheshire "5.1.1"]]
   :main clb.core)

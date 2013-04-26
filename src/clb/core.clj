@@ -1,33 +1,45 @@
 (ns clb.core
   (:require [clj-redis.client :as redis]
             [org.httpkit.client :as http]
-            [clojure.string :as str])
+            [clojure.string :as str]
+            [cheshire.core :refer :all])
   (:use org.httpkit.server))
 
 (defn -main
   "clojure load balancer"
   [& args]
-  (def server-list ["127.0.0.1:3000" "127.0.0.1:3000"])
-  (def port 9090)
-  (def formatted-server-list (map (fn [x] (str "   * " x)) server-list))
+  (def config (parse-string (slurp "config.json") (fn [k] (keyword k))))
+  (def servers (:servers config))
+  (def formatted-server-list (map (fn [x] (str "   * " x)) servers))
   
   (dorun (map println formatted-server-list))
 
   (defn async-request-handler [ring-request]
     (async-response respond ; Use this callback when ready
       (future
-        (def random-server (rand-nth server-list))
+        ; (println ring-request)
+        (def random-server (rand-nth servers))
+        (def remote-addr (:remote-addr ring-request))
         (def scheme (name (:scheme ring-request)))
         (def method (:request-method ring-request))
-        (def server-port (:port 3000))
         (def user-agent (:user-agent ring-request))
-        (http/get (str scheme "://" random-server) {}
-          (fn [{:keys [status headers body error]}] ;; asynchronous handle response
-            (future ; Respond from any thread!
-              (respond {:status status
-                        :headers (dorun (map str headers))
-                        :body    body})))))))
+        (def query-string (:query-string ring-request))
+        (def uri (:uri ring-request))
+
+        (def rerouted-uri (str scheme "://" random-server uri "?" query-string))
+        (def options {})
+
+        (defn lb-handler [{:keys [status headers body error]}]
+          (future ; Respond from any thread!
+            (println (str (clojure.string/upper-case method) " " rerouted-uri))
+            (respond {:status status
+                      :headers (dorun (map str headers))
+                      :body    body})))
+
+        (cond (= method :get (http/get rerouted-uri options lb-handler))
+              (= method :post (http/post rerouted-uri options lb-handler))))))
+  
 
 
-  (run-server async-request-handler {:port port})
+  (run-server async-request-handler {:port (:port config)})
 )
