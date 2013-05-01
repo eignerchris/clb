@@ -11,13 +11,12 @@
   (def config (parse-string (slurp "config.json") (fn [k] (keyword k))))
   (def servers (:servers config))
   (def formatted-server-list (map (fn [x] (str "   * " x)) servers))
-  
+
   (dorun (map println formatted-server-list))
 
   (defn async-request-handler [ring-request]
     (async-response respond ; Use this callback when ready
       (future
-        ; (println ring-request)
         (def random-server (rand-nth servers))
         (def remote-addr (:remote-addr ring-request))
         (def scheme (name (:scheme ring-request)))
@@ -36,9 +35,12 @@
                       :headers (dorun (map str headers))
                       :body    body})))
 
-        (cond (= method :get (http/get rerouted-uri options lb-handler))
-              (= method :post (http/post rerouted-uri options lb-handler))))))
-  
+        (cond (= method :head (http/head rerouted-uri options lb-handler))
+              (= method :get (http/get rerouted-uri options lb-handler))
+              (= method :post (http/post rerouted-uri options lb-handler))
+              (= method :put (http/put rerouted-uri options lb-handler))
+              (= method :delete (http/delete rerouted-uri options lb-handler))))))
+
 
 
   (run-server async-request-handler {:port (:port config)})
